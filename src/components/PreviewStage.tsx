@@ -1,9 +1,14 @@
 "use client";
 
-import React, { useEffect, useRef } from "react";
-import { ImageDown, Pause, Play, RotateCcw } from "lucide-react";
+import React, { useEffect, useImperativeHandle, useRef } from "react";
+import { Download, Pause, Play, RotateCcw } from "lucide-react";
 import { renderGraphicFrame, resolveCanvasDimensions } from "@/lib/renderer";
-import { AspectPreset, CanvasConfig, MotionSpec, ResolutionPreset } from "@/types/motion";
+import {
+  AspectPreset,
+  CanvasConfig,
+  MotionSpec,
+  ResolutionPreset,
+} from "@/types/motion";
 
 interface PreviewStageProps {
   spec: MotionSpec;
@@ -18,7 +23,7 @@ interface PreviewStageProps {
   onChangeCustomSize: (width: number, height: number) => void;
   onChangeTransparentBg: (transparent: boolean) => void;
   onExportPng: (canvasEl: HTMLCanvasElement) => void;
-  canvasRefExternal: React.MutableRefObject<HTMLCanvasElement | null>;
+  canvasRefExternal?: React.MutableRefObject<HTMLCanvasElement | null>;
 }
 
 export function PreviewStage({
@@ -36,157 +41,140 @@ export function PreviewStage({
   onExportPng,
   canvasRefExternal,
 }: PreviewStageProps) {
-  const internalCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const internalRef = useRef<HTMLCanvasElement | null>(null);
+
+  useImperativeHandle(canvasRefExternal, () => internalRef.current as HTMLCanvasElement);
+
   const { width, height } = resolveCanvasDimensions(canvas);
 
   useEffect(() => {
-    canvasRefExternal.current = internalCanvasRef.current;
-  }, [canvasRefExternal]);
-
-  useEffect(() => {
-    const el = internalCanvasRef.current;
+    const el = internalRef.current;
     if (!el) return;
+    el.width = width;
+    el.height = height;
     const ctx = el.getContext("2d");
     if (!ctx) return;
 
-    const progress =
-      spec.durationSec > 0 ? (playheadSec % spec.durationSec) / spec.durationSec : 1;
+    const progress = Math.min(
+      1,
+      Math.max(0, playheadSec / Math.max(0.5, spec.durationSec))
+    );
     renderGraphicFrame(ctx, width, height, spec, canvas, progress);
   }, [spec, canvas, playheadSec, width, height]);
 
-  const aspectStyle: React.CSSProperties =
-    canvas.aspect === "custom"
-      ? { aspectRatio: `${width} / ${height}` }
-      : canvas.aspect === "9:16"
-        ? { aspectRatio: "9 / 16", maxHeight: "460px" }
-        : canvas.aspect === "1:1"
-          ? { aspectRatio: "1 / 1", maxHeight: "440px" }
-          : { aspectRatio: "16 / 9" };
-
   return (
-    <section className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+    <section className="rounded-2xl border border-slate-800/90 bg-[#11192c] p-4 shadow-xl shadow-black/25">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="rounded-full border border-cyan-400/25 bg-cyan-400/10 px-2.5 py-0.5 font-mono text-[10px] font-semibold text-cyan-300">
+            {width}×{height} · {canvas.fps}FPS
+          </span>
+          <span className="rounded-full border border-slate-700/80 bg-[#080d1a] px-2.5 py-0.5 font-mono text-[10px] text-slate-300">
+            {statusMessage}
+          </span>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-1.5">
+          <select
+            value={canvas.aspect}
+            onChange={(e) => onChangeAspect(e.target.value as AspectPreset)}
+            aria-label="Aspect ratio"
+            className="rounded-lg border border-slate-700/80 bg-[#080d1a] px-2.5 py-1.5 text-[11px] font-medium text-slate-200 outline-none focus:border-cyan-400"
+          >
+            <option value="16:9">16:9 Landscape</option>
+            <option value="9:16">9:16 Vertical</option>
+            <option value="1:1">1:1 Square</option>
+          </select>
+
+          <select
+            value={canvas.resolution}
+            onChange={(e) => onChangeResolution(e.target.value as ResolutionPreset)}
+            aria-label="Resolution preset"
+            className="rounded-lg border border-slate-700/80 bg-[#080d1a] px-2.5 py-1.5 text-[11px] font-medium text-slate-200 outline-none focus:border-cyan-400"
+          >
+            <option value="1080p">1080p HD</option>
+            <option value="720p">720p HD</option>
+            <option value="custom">Custom</option>
+          </select>
+
+          {canvas.resolution === "custom" && (
+            <div className="flex items-center gap-1">
+              <input
+                type="number"
+                value={canvas.customWidth}
+                onChange={(e) =>
+                  onChangeCustomSize(Number(e.target.value) || 1920, canvas.customHeight)
+                }
+                aria-label="Custom width"
+                className="w-16 rounded-lg border border-slate-700 bg-[#080d1a] px-2 py-1 font-mono text-[11px] text-white"
+              />
+              <span className="text-xs text-slate-500">×</span>
+              <input
+                type="number"
+                value={canvas.customHeight}
+                onChange={(e) =>
+                  onChangeCustomSize(canvas.customWidth, Number(e.target.value) || 1080)
+                }
+                aria-label="Custom height"
+                className="w-16 rounded-lg border border-slate-700 bg-[#080d1a] px-2 py-1 font-mono text-[11px] text-white"
+              />
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div className="relative flex aspect-video w-full items-center justify-center overflow-hidden rounded-xl border border-slate-800 bg-[#070b14]">
+        <canvas
+          ref={internalRef}
+          className="max-h-full max-w-full object-contain"
+        />
+      </div>
+
+      <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <button
             type="button"
             onClick={onTogglePlay}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-[#121826] px-3 py-1.5 text-xs font-semibold text-white hover:border-amber-400"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-cyan-400/35 bg-cyan-400/15 px-3 py-1.5 text-xs font-bold text-cyan-300 transition hover:bg-cyan-400/25"
           >
             {isPlaying ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
             <span>{isPlaying ? "Pause" : "Play"}</span>
           </button>
+
           <button
             type="button"
             onClick={onRestart}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-[#121826] px-3 py-1.5 text-xs font-semibold text-slate-200 hover:border-sky-400"
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700/80 bg-[#080d1a] px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-slate-500"
           >
             <RotateCcw className="h-3.5 w-3.5" />
             <span>Restart</span>
           </button>
+
           <span className="ml-1 font-mono text-xs text-slate-400">
             {playheadSec.toFixed(1)}s / {spec.durationSec.toFixed(1)}s
           </span>
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            if (internalCanvasRef.current) onExportPng(internalCanvasRef.current);
-          }}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-sky-400/40 bg-sky-400/10 px-3 py-1.5 text-xs font-semibold text-sky-300 hover:bg-sky-400/20"
-        >
-          <ImageDown className="h-3.5 w-3.5" />
-          <span>Export PNG</span>
-        </button>
-      </div>
-
-      <div className="relative flex min-h-[260px] items-center justify-center overflow-hidden rounded-2xl border border-slate-800 bg-[#04060A] p-4 sm:min-h-[360px]">
-        <div
-          className="pointer-events-none absolute inset-0 opacity-20"
-          style={{
-            backgroundImage:
-              "radial-gradient(#38BDF8 0.75px, transparent 0.75px), radial-gradient(#EAB308 0.75px, #04060A 0.75px)",
-            backgroundSize: "24px 24px",
-            backgroundPosition: "0 0, 12px 12px",
-          }}
-        />
-
-        <canvas
-          ref={internalCanvasRef}
-          width={width}
-          height={height}
-          style={aspectStyle}
-          className="relative z-10 max-h-[460px] w-auto max-w-full rounded-lg border border-slate-700/70 shadow-2xl"
-        />
-
-        <div className="absolute top-3 left-3 z-20 rounded bg-slate-950/85 px-2 py-1 font-mono text-[10px] tracking-wider text-amber-400 uppercase">
-          {width}×{height} · {canvas.fps}FPS
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-800 bg-[#0D121E] px-3.5 py-2.5 text-xs">
-        <div className="flex flex-wrap items-center gap-2">
-          <select
-            aria-label="Aspect ratio"
-            value={canvas.aspect}
-            onChange={(e) => onChangeAspect(e.target.value as AspectPreset)}
-            className="rounded-lg border border-slate-700 bg-[#07090F] px-2.5 py-1.5 text-xs text-slate-200"
-          >
-            <option value="16:9">16:9 YouTube</option>
-            <option value="9:16">9:16 Shorts / Reels</option>
-            <option value="1:1">1:1 Square</option>
-            <option value="custom">Custom Size</option>
-          </select>
-
-          {canvas.aspect !== "custom" && (
-            <select
-              aria-label="Resolution"
-              value={canvas.resolution}
-              onChange={(e) => onChangeResolution(e.target.value as ResolutionPreset)}
-              className="rounded-lg border border-slate-700 bg-[#07090F] px-2.5 py-1.5 text-xs text-slate-200"
-            >
-              <option value="720p">720p HD</option>
-              <option value="1080p">1080p Full HD</option>
-              <option value="4k">4K UHD</option>
-            </select>
-          )}
-
-          {canvas.aspect === "custom" && (
-            <div className="flex items-center gap-1.5">
-              <input
-                type="number"
-                min={240}
-                max={3840}
-                value={canvas.customWidth}
-                onChange={(e) => onChangeCustomSize(Number(e.target.value), canvas.customHeight)}
-                className="w-20 rounded-lg border border-slate-700 bg-[#07090F] px-2 py-1 text-xs text-white"
-                aria-label="Custom width"
-              />
-              <span className="text-slate-500">×</span>
-              <input
-                type="number"
-                min={240}
-                max={3840}
-                value={canvas.customHeight}
-                onChange={(e) => onChangeCustomSize(canvas.customWidth, Number(e.target.value))}
-                className="w-20 rounded-lg border border-slate-700 bg-[#07090F] px-2 py-1 text-xs text-white"
-                aria-label="Custom height"
-              />
-            </div>
-          )}
-
-          <label className="inline-flex cursor-pointer items-center gap-1.5 text-slate-300">
+        <div className="flex items-center gap-3">
+          <label className="flex cursor-pointer items-center gap-1.5 text-xs text-slate-300">
             <input
               type="checkbox"
               checked={canvas.transparentBackground}
               onChange={(e) => onChangeTransparentBg(e.target.checked)}
-              className="rounded border-slate-600 accent-amber-400"
+              className="rounded border-slate-600 bg-[#080d1a] accent-cyan-400"
             />
-            <span>Alpha / Transparent BG</span>
+            <span>Transparent BG</span>
           </label>
-        </div>
 
-        <span className="text-[11px] text-sky-300">{statusMessage}</span>
+          <button
+            type="button"
+            onClick={() => internalRef.current && onExportPng(internalRef.current)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700/80 bg-[#080d1a] px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-cyan-400/50 hover:text-cyan-300"
+          >
+            <Download className="h-3.5 w-3.5" />
+            <span>Export PNG</span>
+          </button>
+        </div>
       </div>
     </section>
   );
