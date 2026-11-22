@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { Download, Plus, Sparkles } from "lucide-react";
+import { Film, Plus, Sparkles } from "lucide-react";
 
 interface TopBarProps {
   projectName: string;
@@ -17,39 +17,44 @@ export function TopBar({
   onExportVideo,
 }: TopBarProps) {
   return (
-    <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-800/90 bg-[#0A0D16]/95 px-4 backdrop-blur md:px-6">
+    <header className="sticky top-0 z-30 flex h-16 items-center justify-between gap-3 border-b border-slate-800/80 bg-[#080d1a]/90 px-4 backdrop-blur-md md:px-6">
       <div className="flex min-w-0 items-center gap-3">
-        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-amber-400/40 bg-amber-400/10 text-amber-400">
-          <Sparkles className="h-4 w-4" />
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 text-slate-950 shadow-lg shadow-cyan-500/20">
+          <Sparkles className="h-4 w-4 stroke-[2.4]" />
         </div>
-        <div className="truncate">
-          <div className="truncate text-xs font-extrabold tracking-widest text-white uppercase md:text-sm">
-            LORDMARSHAL <span className="text-amber-400">MOTION STUDIO</span>
+
+        <div className="min-w-0">
+          <div className="flex items-center gap-2">
+            <span className="truncate text-sm font-extrabold tracking-tight text-white">
+              Motion Studio
+            </span>
+            <span className="hidden rounded-full border border-cyan-400/25 bg-cyan-400/10 px-2 py-0.5 font-mono text-[10px] font-semibold text-cyan-300 sm:inline-block">
+              PRO ENGINE
+            </span>
           </div>
-          <div className="truncate text-[11px] text-slate-400">{projectName}</div>
+          <p className="truncate text-[11px] text-slate-400">{projectName}</p>
         </div>
       </div>
 
-      <div className="flex items-center gap-2">
-        <span className="hidden rounded-full border border-sky-400/30 bg-sky-400/10 px-2.5 py-1 text-[11px] font-medium text-sky-300 lg:inline-block">
-          PHASE 1 MVP
-        </span>
+      <div className="flex shrink-0 items-center gap-2">
         <button
           type="button"
           onClick={onNewProject}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-slate-700 bg-[#121826] px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-sky-400/60 hover:text-white"
+          className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700/80 bg-[#11192c] px-3 py-2 text-xs font-semibold text-slate-200 transition hover:border-cyan-400/40 hover:text-white"
         >
-          <Plus className="h-3.5 w-3.5" />
-          <span>New</span>
+          <Plus className="h-3.5 w-3.5 text-cyan-400" />
+          <span className="hidden sm:inline">New Graphic</span>
+          <span className="sm:hidden">New</span>
         </button>
+
         <button
           type="button"
           onClick={onExportVideo}
           disabled={isExporting}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-amber-400 px-3.5 py-2 text-xs font-bold text-slate-950 transition hover:bg-amber-300 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-cyan-400 to-blue-600 px-3.5 py-2 text-xs font-bold text-slate-950 shadow-md shadow-blue-600/25 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-50"
         >
-          <Download className="h-3.5 w-3.5" />
-          <span>{isExporting ? "Exporting..." : "Export WebM"}</span>
+          <Film className="h-3.5 w-3.5 stroke-[2.3]" />
+          <span>{isExporting ? "Rendering..." : "Export WebM"}</span>
         </button>
       </div>
     </header>
